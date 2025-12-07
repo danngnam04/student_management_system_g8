@@ -52,6 +52,7 @@ $result = $conn->query($sql);
                     <th>Grade Block</th>
                     <th>Head Teacher</th>
                     <th>Student Count</th>
+                    <th>Notes</th>
                     <th>Actions</th>
             
                 </tr>
@@ -72,6 +73,7 @@ $result = $conn->query($sql);
                         echo "<td>" . htmlspecialchars($row['grade_block']) . "</td>";
                         echo "<td>" . htmlspecialchars($row['teacher_name']) . "</td>";
                         echo "<td>" . $row['student_count'] . "</td>";
+                        echo "<td>" . $row['Notes'] . "</td>";
                         echo "<td class='actions'>";
                         echo "<a href='edit_class.php?id=" . $row['id'] . "' class='btn btn-edit'>Edit</a>";
                         echo "<a href='delete-class.php?id=" . $row['id'] . "' class='btn btn-delete' onclick=\"return confirm('Are you sure you want to delete this class? This will also delete ALL students in it!');\">Delete</a>";
