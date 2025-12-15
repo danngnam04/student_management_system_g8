@@ -1,5 +1,5 @@
 <?php
-// class_ranking.php - English Version (Added Home Tab)
+// class_ranking.php - English Version with Fixed Sidebar
 session_start();
 include 'db.php'; 
 
@@ -8,9 +8,7 @@ if (!isset($_SESSION['user_id'])) { header('Location: login.php'); exit; }
 $user_name = $_SESSION['user_name'];
 $user_role = $_SESSION['user_role'] ?? 'student';
 
-// --- LOGIC: ADD/DELETE POINTS --- //
-
-// 1. ADD POINT
+// 1. HANDLE ADD POINTS
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] == 'add_point') {
     $class_id = $_POST['class_id'];
     $student_id = !empty($_POST['student_id']) ? $_POST['student_id'] : NULL;
@@ -27,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
     header("Location: class_ranking.php?view_class_id=$class_id"); exit;
 }
 
-// 2. DELETE POINT
+// 2. HANDLE DELETE LOG
 if (isset($_GET['delete_id'])) {
     $id = (int)$_GET['delete_id'];
     $cid = (int)$_GET['view_class_id'];
@@ -35,7 +33,7 @@ if (isset($_GET['delete_id'])) {
     header("Location: class_ranking.php?view_class_id=$cid"); exit;
 }
 
-// 3. FETCH RANKING (Current Month)
+// 3. FETCH RANKING (Current Month Logic)
 $sql_ranking = "
     SELECT c.id, c.class_name, c.teacher_name, c.teacher_photo,
     (100 + COALESCE(SUM(p.point_change), 0)) as total_score
@@ -53,7 +51,7 @@ $view_class = null; $logs_result = null; $students_in_class = null;
 if (isset($_GET['view_class_id'])) {
     $cid = (int)$_GET['view_class_id'];
     
-    // Class Info
+    // Class Info + Score
     $stmt = $conn->prepare("
         SELECT c.*, (100 + COALESCE(SUM(p.point_change), 0)) as total_score 
         FROM classes c 
@@ -91,11 +89,11 @@ if (isset($_GET['view_class_id'])) {
     <title>Class Ranking</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        /* --- 1. GLOBAL STYLES --- */
+        /* --- 1. GLOBAL STYLES (MATCHING DASHBOARD) --- */
         body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f6f9; }
         .app-container { display: flex; height: 100vh; overflow: hidden; }
 
-        /* --- 2. SIDEBAR STYLE --- */
+        /* --- 2. SIDEBAR STYLE (FIXED) --- */
         .sidebar { 
             width: 260px; 
             background: #0f172a; 
@@ -104,38 +102,47 @@ if (isset($_GET['view_class_id'])) {
             transition: width 0.3s ease; 
             flex-shrink: 0; 
             white-space: nowrap; 
+            overflow: hidden;
         }
         
+        /* Collapsed State */
         .sidebar.collapsed { width: 70px; }
-        .sidebar.collapsed .logo-group { display: none; }
-        .sidebar.collapsed .sidebar-menu span { display: none; }
-        .sidebar.collapsed .user-info { display: none; }
-        .sidebar.collapsed .logout-text { display: none; }
+        .sidebar.collapsed .logo-text { display: none; opacity: 0; }
+        .sidebar.collapsed .sidebar-menu span { display: none; opacity: 0; }
+        .sidebar.collapsed .user-info { display: none; opacity: 0; }
+        .sidebar.collapsed .logout-text { display: none; opacity: 0; }
         
-        .sidebar.collapsed .sidebar-header { justify-content: center; }
-        .sidebar.collapsed .sidebar-menu a { justify-content: center; padding: 15px 0; }
+        /* Centering icons when collapsed */
+        .sidebar.collapsed .sidebar-header { justify-content: center; padding-left: 0; padding-right: 0; }
+        .sidebar.collapsed .sidebar-menu a { justify-content: center; }
         .sidebar.collapsed .sidebar-menu i { margin-right: 0; font-size: 1.4rem; }
         .sidebar.collapsed .logout-btn { justify-content: center; }
 
-        .sidebar-header { padding: 20px; display: flex; align-items: center; justify-content: space-between; color: #fff; border-bottom: 1px solid #1e293b; height: 60px; box-sizing: border-box; }
-        .logo-group { display: flex; align-items: center; gap: 10px; overflow: hidden; }
-        .logo-group h3 { margin: 0; font-size: 1.2rem; font-weight: bold; }
-        #toggle-btn { cursor: pointer; color: #fff; font-size: 1.2rem; }
+        /* Header */
+        .sidebar-header { 
+            padding: 20px; display: flex; align-items: center; justify-content: space-between; 
+            color: #fff; border-bottom: 1px solid #1e293b; height: 64px; box-sizing: border-box;
+        }
+        .logo-group { display: flex; align-items: center; gap: 10px; }
+        .logo-text { margin: 0; font-size: 1.2rem; font-weight: bold; }
+        #toggle-btn { cursor: pointer; color: #fff; font-size: 1.2rem; min-width: 20px; text-align: center; }
 
+        /* Menu */
         .sidebar-menu { list-style: none; padding: 10px 0; margin: 0; flex: 1; }
         .sidebar-menu a { display: flex; align-items: center; padding: 12px 20px; color: #94a3b8; text-decoration: none; transition: 0.2s; font-size: 0.95rem; }
         .sidebar-menu a:hover { background: #1e293b; color: #fff; }
         .sidebar-menu a.active { background: #1e293b; color: #3b82f6; border-left: 3px solid #3b82f6; }
         .sidebar-menu i { width: 25px; margin-right: 10px; text-align: center; }
-        
+
+        /* Footer */
         .sidebar-footer { padding: 20px; border-top: 1px solid #1e293b; text-align: center; background: #0f172a; }
         .user-info { color: #fff; font-weight: bold; margin-bottom: 5px; font-size: 0.9rem; }
         .logout-btn { color: #ef4444; text-decoration: none; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; gap: 5px; }
 
-        /* --- 3. PAGE SPECIFIC LAYOUT --- */
+        /* --- 3. PAGE SPECIFIC LAYOUT (SPLIT SCREEN) --- */
         .main-content { flex: 1; display: flex; overflow: hidden; }
         
-        /* Left Column: Leaderboard */
+        /* Left Column */
         .ranking-left { width: 380px; background: #fff; border-right: 1px solid #e2e8f0; display: flex; flex-direction: column; }
         .list-header { padding: 20px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; }
         
@@ -148,16 +155,15 @@ if (isset($_GET['view_class_id'])) {
         .rank-2 .rank-badge { background: #94a3b8; color: #fff; }
         .rank-3 .rank-badge { background: #d97706; color: #fff; }
         
-        /* Right Column: Details */
+        /* Right Column */
         .ranking-right { flex: 1; padding: 30px; overflow-y: auto; background: #f1f5f9; }
-        
         .class-header-card { background: #fff; padding: 25px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border: 1px solid #e2e8f0; }
         
         .teacher-info { display: flex; align-items: center; gap: 15px; margin-top: 5px; }
         .teacher-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid #e2e8f0; }
         .total-score { font-size: 2.5rem; font-weight: 800; line-height: 1; }
         
-        /* Forms */
+        /* Action Forms */
         .action-card { background: #fff; padding: 20px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); border: 1px solid #e2e8f0; }
         .form-row { display: flex; gap: 15px; margin-bottom: 15px; }
         .form-control { flex: 1; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; }
@@ -181,35 +187,17 @@ if (isset($_GET['view_class_id'])) {
         <div class="sidebar-header">
             <div class="logo-group">
                 <i class="fas fa-graduation-cap" style="font-size: 1.5rem;"></i> 
-                <h3>SMS Portal</h3>
+                <h3 class="logo-text">SMS Portal</h3>
             </div>
             <i class="fas fa-bars" id="toggle-btn" onclick="toggleSidebar()"></i>
         </div>
         
         <ul class="sidebar-menu">
-            <li>
-                <a href="home.php" class="<?php echo basename($_SERVER['PHP_SELF']) == 'home.php' ? 'active' : ''; ?>">
-                    <i class="fas fa-home"></i> <span>Home</span>
-                </a>
-            </li>
-
-            <li>
-                <a href="dashboard.php" class="<?php echo basename($_SERVER['PHP_SELF']) == 'dashboard.php' ? 'active' : ''; ?>">
-                    <i class="fas fa-desktop"></i> <span>Class Management</span>
-                </a>
-            </li>
-            <li>
-                <a href="search_student.php" class="<?php echo basename($_SERVER['PHP_SELF']) == 'search_student.php' ? 'active' : ''; ?>">
-                    <i class="fas fa-search"></i> <span>Search Students</span>
-                </a>
-            </li>
-            <li>
-                <a href="class_ranking.php" class="<?php echo basename($_SERVER['PHP_SELF']) == 'class_ranking.php' ? 'active' : ''; ?>">
-                    <i class="fas fa-trophy"></i> <span>Class Ranking</span>
-                </a>
-            </li>
+            <li><a href="dashboard.php"><i class="fas fa-desktop"></i> <span>Class Management</span></a></li>
+            <li><a href="search_student.php"><i class="fas fa-search"></i> <span>Search Students</span></a></li>
+            <li><a href="class_ranking.php" class="active"><i class="fas fa-trophy"></i> <span>Class Ranking</span></a></li>
         </ul>
-
+        
         <div class="sidebar-footer">
             <div class="user-info">User: <?php echo htmlspecialchars($user_name); ?></div>
             <a href="logout.php" class="logout-btn">
@@ -223,7 +211,7 @@ if (isset($_GET['view_class_id'])) {
         <div class="ranking-left">
             <div class="list-header">
                 <h3 style="margin:0; color: #1e293b;">Leaderboard</h3>
-                <small style="color:#64748b;">Month: <strong><?php echo date('m/Y'); ?></strong> (Auto Reset)</small>
+                <small style="color:#64748b;">Month: <strong><?php echo date('F Y'); ?></strong></small>
             </div>
             <div style="flex:1; overflow-y:auto;">
                 <?php 
@@ -254,7 +242,7 @@ if (isset($_GET['view_class_id'])) {
                     <div>
                         <h1 style="margin:0; font-size:1.8rem; color:#1e293b;"><?php echo htmlspecialchars($view_class['class_name']); ?></h1>
                         <div class="teacher-info">
-                            <?php $t_img = !empty($view_class['teacher_photo']) ? $view_class['teacher_photo'] : 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png'; ?>
+                            <?php $t_img = !empty($view_class['teacher_photo']) ? $view_class['teacher_photo'] : 'https://via.placeholder.com/40'; ?>
                             <img src="<?php echo $t_img; ?>" class="teacher-avatar">
                             <div>
                                 <div style="font-weight:bold; color:#334155;"><?php echo $view_class['teacher_name']; ?></div>
@@ -270,25 +258,25 @@ if (isset($_GET['view_class_id'])) {
                 </div>
 
                 <div class="action-card">
-                    <h4 style="margin-top:0; margin-bottom:15px; color:#334155;"><i class="fas fa-pen-nib"></i> Add Reward/Penalty</h4>
+                    <h4 style="margin-top:0; margin-bottom:15px; color:#334155;"><i class="fas fa-edit"></i> Manage Points</h4>
                     <form action="" method="POST">
                         <input type="hidden" name="action" value="add_point">
                         <input type="hidden" name="class_id" value="<?php echo $view_class['id']; ?>">
                         
                         <div class="form-row">
-                            <select name="point_type" class="form-control">
+                            <select name="point_type" class="form-control" style="flex:1;">
                                 <option value="minus">🔴 Penalty (-)</option>
                                 <option value="plus">🟢 Reward (+)</option>
                             </select>
-                            <input type="number" name="point_value" class="form-control" placeholder="Points..." required min="1">
+                            <input type="number" name="point_value" class="form-control" style="flex:1;" placeholder="Points (e.g. 5, 10)" required min="1">
                         </div>
                         
                         <div class="form-row">
-                            <select name="student_id" class="form-control">
+                            <select name="student_id" class="form-control" style="flex:1;">
                                 <option value="">-- Apply to Whole Class --</option>
                                 <?php if($students_in_class) { while($st = $students_in_class->fetch_assoc()) { echo "<option value='{$st['id']}'>{$st['full_name']}</option>"; } } ?>
                             </select>
-                            <input type="text" name="description" class="form-control" placeholder="Reason..." required>
+                            <input type="text" name="description" class="form-control" style="flex:2;" placeholder="Reason (e.g. Late, Good Job)" required>
                         </div>
                         
                         <button type="submit" class="btn-submit">SUBMIT</button>
@@ -303,22 +291,24 @@ if (isset($_GET['view_class_id'])) {
                             <?php 
                             if ($logs_result && $logs_result->num_rows > 0) {
                                 while($log = $logs_result->fetch_assoc()) {
-                                    $isCurrentMonth = (date('mY', strtotime($log['created_at'])) == date('mY'));
-                                    $bg = $isCurrentMonth ? "background:#f0fdf4;" : "";
+                                    $isCurrent = (date('mY', strtotime($log['created_at'])) == date('mY'));
+                                    $bg = $isCurrent ? "background:#f0fdf4;" : ""; 
                                     
                                     echo "<tr style='$bg'>";
-                                    echo "<td>" . date('d/m H:i', strtotime($log['created_at'])) . "</td>";
+                                    echo "<td>" . date('M d, H:i', strtotime($log['created_at'])) . "</td>";
                                     
                                     $who = $log['student_name'] ? "<strong>{$log['student_name']}</strong>" : "<i>Whole Class</i>";
-                                    echo "<td>$who</td><td>{$log['description']}</td>";
+                                    echo "<td>$who</td>";
+                                    echo "<td>{$log['description']}</td>";
                                     
                                     $badgeClass = ($log['point_change'] >= 0) ? 'bg-green' : 'bg-red';
                                     $sign = ($log['point_change'] >= 0) ? '+' : '';
                                     echo "<td><span class='badge $badgeClass'>$sign{$log['point_change']}</span></td>";
                                     
-                                    echo "<td><a href='class_ranking.php?view_class_id={$view_class['id']}&delete_id={$log['id']}' style='color:#ef4444; font-weight:bold; text-decoration:none;' onclick=\"return confirm('Delete?');\">&times;</a></td></tr>";
+                                    echo "<td><a href='class_ranking.php?view_class_id={$view_class['id']}&delete_id={$log['id']}' style='color:#ef4444;' onclick=\"return confirm('Delete this record?');\"><i class='fas fa-trash'></i></a></td>";
+                                    echo "</tr>";
                                 }
-                            } else { echo "<tr><td colspan='5' style='text-align:center; padding:20px; color:#94a3b8;'>No history found.</td></tr>"; }
+                            } else { echo "<tr><td colspan='5' style='text-align:center; padding:20px; color:#94a3b8;'>No history records found.</td></tr>"; }
                             ?>
                         </tbody>
                     </table>
@@ -339,6 +329,5 @@ if (isset($_GET['view_class_id'])) {
         document.getElementById("mySidebar").classList.toggle("collapsed");
     }
 </script>
-
 </body>
 </html>
